@@ -17,7 +17,7 @@ You may also wish to continue with the following optional tasks:
 1. Deploy your ADK agent to Agent Runtime for managed, scalable hosting
 2. Surface the deployed agent in Gemini Enterprise to create a unified platform across all three tiers
 
-Agents output:
+<br><br><br><hr>
 ### Prompt: What is McLaren's podium rate at Monaco across all time?
 Response: <br>
 McLaren has an all-time podium rate of 27.3% at the Circuit de Monaco.
