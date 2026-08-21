@@ -60,7 +60,11 @@ shared_config = types.GenerateContentConfig(
 # TODO 1 — Connect to BigQuery using ADK's Built-in BigQueryToolset
 # ============================================================================
 
-bigquery_toolset = None  # TODO 1: Replace with BigQueryToolset setup
+# bigquery_toolset = None  # TODO 1: Replace with BigQueryToolset setup
+
+credentials, _ = google.auth.default()
+credentials_config = BigQueryCredentialsConfig(credentials=credentials)
+bigquery_toolset = BigQueryToolset(credentials_config=credentials_config)
 
 
 # ============================================================================
@@ -175,11 +179,31 @@ def get_podium_predictions(season: int = 2024) -> dict:
 # TODO 2 — Create the Visualization Agent
 # ============================================================================
 
-visualization_tool = None  # TODO 2: Create Agent, then wrap with AgentTool
+# visualization_tool = None  # TODO 2: Create Agent, then wrap with AgentTool
+
+visualization_agent = Agent(
+    name="visualization_agent",
+    model="gemini-3-flash-preview",
+    generate_content_config=shared_config,
+    description=VISUALIZATION_AGENT_DESCRIPTION,
+    instruction=VISUALIZATION_INSTRUCTIONS,
+    code_executor=BuiltInCodeExecutor(),
+)
+
+visualization_tool = AgentTool(agent=visualization_agent)
 
 
 # ============================================================================
 # TODO 3 — Assemble the Root Agent
 # ============================================================================
 
-root_agent = None  # TODO 3: Create the root Agent
+# root_agent = None  # TODO 3: Create the root Agent
+
+root_agent = Agent(
+    name="mclaren_race_intelligence",
+    model="gemini-3-flash-preview",
+    generate_content_config=shared_config,
+    description=ROOT_AGENT_DESCRIPTION,
+    instruction=get_root_agent_instructions(PROJECT_ID),
+    tools=[bigquery_toolset, get_podium_predictions, visualization_tool],
+)
