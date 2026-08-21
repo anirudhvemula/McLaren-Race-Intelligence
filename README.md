@@ -17,7 +17,109 @@ You may also wish to continue with the following optional tasks:
 1. Deploy your ADK agent to Agent Runtime for managed, scalable hosting
 2. Surface the deployed agent in Gemini Enterprise to create a unified platform across all three tiers
 
+
 <br><br><br><hr>
+### Task 0.2: Set Environment Variables
+    export PROJECT_ID="qwiklabs-gcp-00-5a397411a9aa"
+    export REGION="us-central1"
+    export GCS_BUCKET="gs://class-demo/mclaren-f1"
+
+    echo "export PROJECT_ID=\"${PROJECT_ID}\"" >> ~/.bashrc
+    echo "export REGION=\"${REGION}\"" >> ~/.bashrc
+    echo "export GCS_BUCKET=\"${GCS_BUCKET}\"" >> ~/.bashrc
+<br><br>
+### Task 0.3: Clone the Lab Repository
+    cd ~
+    git clone https://github.com/haggman/McLaren-Race-Intelligence.git
+    cd McLaren-Race-Intelligence
+<br><br>
+### Task 0.4: Create the BigQuery Dataset
+    bq mk --location=$REGION --dataset ${PROJECT_ID}:f1_data
+<br><br>
+### Task 0.5: Verify Your Environment
+    echo "=== Environment Check ==="
+    echo "Project : $PROJECT_ID"
+    echo "Region  : $REGION"
+    echo "Bucket  : $GCS_BUCKET"
+    echo "Repo    : $(ls ~/McLaren-Race-Intelligence | wc -l) files in repo"
+    echo "BQ      : $(bq ls --project_id=$PROJECT_ID | grep f1_data | awk '{print $1}') dataset exists"
+
+    === Environment Check ===
+    Project : qwiklabs-gcp-00-5a397411a9aa
+    Region  : us-central1
+    Bucket  : gs://class-demo/mclaren-f1
+    Repo    : 4 files in repo
+    BQ      : f1_data dataset exists
+<br><br>
+### Task 2.1: Load the F1 Dataset
+```
+   for table in circuits constructors constructor_results constructor_standings \
+            driver_standings drivers lap_times pit_stops qualifying races \
+            results seasons sprint_results status mclaren_drivers; do
+
+    bq load \
+    --source_format=PARQUET \
+    --replace \
+    ${PROJECT_ID}:f1_data.${table} \
+    ${GCS_BUCKET}/bq-staging/${table}.parquet
+    done
+```
+Verify:
+```
+    bq query --use_legacy_sql=false \
+    "SELECT COUNT(*) AS mclaren_race_entries
+    FROM \`f1_data.results\` r
+    JOIN \`f1_data.constructors\` c ON r.constructor_id = c.constructor_id
+    WHERE c.constructor_ref = 'mclaren'"
+Output: <br>
+    +----------------------+
+    | mclaren_race_entries |
+    +----------------------+
+    |                 1977 |
+    +----------------------+
+```
+<br><br>
+### Task 2.2: Create the Analytical Views
+
+```bash
+bash ~/McLaren-Race-Intelligence/sql/create_views.sh
+```
+Verify:
+```
+bq query --use_legacy_sql=false \
+"SELECT driver_name, SUM(wins) AS wins, SUM(podiums) AS podiums, SUM(total_points) AS points
+FROM \`f1_data.v_mclaren_season_summary\`
+GROUP BY driver_name
+ORDER BY podiums DESC
+LIMIT 10"
+
++-----------------+------+---------+--------+
+|   driver_name   | wins | podiums | points |
++-----------------+------+---------+--------+
+| Alain Prost     |   30 |      63 |  458.5 |
+| Ayrton Senna    |   35 |      55 |  451.0 |
+| Mika Häkkinen   |   20 |      51 |  407.0 |
+| David Coulthard |   12 |      51 |  412.0 |
+| Lewis Hamilton  |   21 |      49 |  913.0 |
+| Lando Norris    |   11 |      46 | 1364.0 |
+| Kimi Räikkönen  |    9 |      36 |  337.0 |
+| Oscar Piastri   |    9 |      28 |  746.0 |
+| Jenson Button   |    8 |      26 |  908.0 |
+| Gerhard Berger  |    3 |      18 |  135.0 |
++-----------------+------+---------+--------+
+```
+
+<br><br>
+
+### Task 2.3: Train the Podium Prediction Model
+    bq query \
+    --use_legacy_sql=false \
+    --project_id=${PROJECT_ID} \
+    < ~/McLaren-Race-Intelligence/sql/create_model.sql
+	
+<br><br>
+### Task 3. The Strategy Team — Gemini Enterprise App
+
 ### Prompt: What is McLaren's podium rate at Monaco across all time?
 Response: <br>
 McLaren has an all-time podium rate of 27.3% at the Circuit de Monaco.
